@@ -1,0 +1,2 @@
+cmd2>=0.6.0
+baidupcsapi>=0.3.4
