@@ -27,13 +27,13 @@ if not sys.stdout.isatty():
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 
-def readable_size(num, use_kibibyte = True):
+def readable_size(num, use_kibibyte = True, unit_ljust = 0):
     base, suffix = [(1000.,'B'),(1024.,'iB')][use_kibibyte]
     for x in ['B'] + map(lambda x: x+suffix, list('kMGTP')):
         if -base < num < base:
-            return "%3.1f %s" % (num, x)
+            return "%3.1f %s" % (num, x.ljust(unit_ljust, ' '))
         num /= base
-    return "%3.1f %s" % (num, x)
+    return "%3.1f %s" % (num, x.ljust(unit_ljust, ' '))
 
 def readable_timedelta(num):
     num = int(num)
@@ -323,7 +323,7 @@ class BaiduPan(Cmd):
               make_option('-p', '--password',help="specify password"),
              ])
     def do_login(self, args, opts):
-        print 'loging in, please wait ...'
+        print 'logging in, please wait ...'
         self.pcs = PCS(opts.username, opts.password, captcha_callback = handle_captcha)
         self.pcs.get_fastest_pcs_server()
         res = json.loads(self.pcs.quota().content)
@@ -420,7 +420,7 @@ class BaiduPan(Cmd):
         lst = res.get('list', [])
         idxsz = len(str(len(lst)))
         for fsitem in lst:
-            print '[ %s ]  %s  %s\t%s' % (str(cnt).ljust(idxsz), fsitem.get('isdir', 0) and 'd' or '-', readable_size(fsitem.get('size')) , colored(fsitem.get('server_filename'), fsitem.get('isdir', 0) and 'cyan' or 'white'))
+            print '[ %s ]  %s  %s\t%s' % (str(cnt).ljust(idxsz), fsitem.get('isdir', 0) and 'd' or '-', readable_size(fsitem.get('size'), unit_ljust = 3) , colored(fsitem.get('server_filename'), fsitem.get('isdir', 0) and 'cyan' or 'white'))
             cnt += 1
             content.append(fsitem.get('server_filename'))
 
