@@ -300,7 +300,7 @@ def download(pcs, filepath, saveto, blocksize = 1<<21, retry = 5):
     log('[ II ] file `%s` downloaded, a total of %d bytes downloaded within %s, md5 = %s.' % (filepath, size, readable_timedelta(time.time() - begin_time), o['info'][0]['md5']), 'white')
 
 class BaiduPan(Cmd):
-    prompt = 'dupan >> '
+    prompt = colored('dupan', 'yellow', attrs = ['bold']) + colored(' >> ', 'red', attrs = ['bold'])
     completekey = 'tab'
     editor = 'vim'
     timing = False
@@ -308,7 +308,7 @@ class BaiduPan(Cmd):
 
     download_root = os.path.join(CWD, 'download')
     cwd = '/'
-    dirs = []
+    dirs = {}
     pcs = None
 
     def __init__(self):
@@ -424,7 +424,7 @@ class BaiduPan(Cmd):
             cnt += 1
             content.append(fsitem.get('server_filename'))
 
-        self.dirs = lst
+        self.dirs[self.cwd] = lst
 
     def do_meta(self, args):
         if not self.pcs:
@@ -456,25 +456,38 @@ class BaiduPan(Cmd):
         for k in info:
             print colored(k + ': ', 'cyan'), colored(info[k], 'white')
 
-    def complete_ls(self, text, line, start_index, end_index):
-        if text:
-            return [e['server_filename'] for e in self.dirs if e['server_filename'].startswith(text)]
-        else:
-            return [e['server_filename'] for e in self.dirs]
+    def _complete_remote(filter = None):
+        if not filter: filter = lambda x:True
+        def complete_sth(self, text, line, start_index, end_index):
+            if text:
+                if text.endswith('/'):
+                    text = os.path.normpath(text)
+                    dn = os.path.normpath(os.path.join(self.cwd, text))
+                    if dn in self.dirs:
+                        return map(lambda x: os.path.join(dn, x), [e['server_filename'] for e in self.dirs.get(dn) if filter(e)])
+                    else:
+                        return []
+                if text.startswith('/'):
+                    if text in self.dirs:
+                        return [text + '/']
+                    else:
+                        dn = os.path.dirname(text)
+                        bn = os.path.basename(text)
+                        if dn not in self.dirs: 
+                            return []
+                        prefix = dn
+                else:
+                    prefix = ''
+                    dn = self.cwd
+                    bn = text
+                return [os.path.normpath(os.path.join(prefix, e['server_filename'])) for e in self.dirs.get(dn) if e['server_filename'].startswith(bn) and filter(e)]
+            else:
+                return [e['server_filename'] for e in self.dirs.get(self.cwd) if filter(e)]
+        return complete_sth
 
-    def complete_cd(self, text, line, start_index, end_index):
-        if text:
-            return [e['server_filename'] for e in self.dirs if e['server_filename'].startswith(text) and e['isdir']]
-        else:
-            return [e['server_filename'] for e in self.dirs if e['isdir']]
-
-    def complete_download(self, text, line, start_index, end_index):
-        if text:
-            return [e['server_filename'] for e in self.dirs if e['server_filename'].startswith(text) and not e['isdir']]
-        else:
-            return [e['server_filename'] for e in self.dirs if not e['isdir']]
-
-    complete_mv = complete_meta = complete_rm = complete_ls
+    complete_mv = complete_meta = complete_rm = complete_ls = _complete_remote()
+    complete_cd = _complete_remote(filter = lambda e: e['isdir'])
+    complete_download = _complete_remote(filter = lambda e: not e['isdir'])
 
     @options([make_option('-b', '--blocksize', type="int", default=1<<21, help="download blocksize"),
               make_option('-r', '--retry', type="int", default=5, help="retry time after failure"),
@@ -489,9 +502,12 @@ class BaiduPan(Cmd):
 
         fps = []
         if opts.index:
+            if not self.dirs.get(self.cwd):
+                print 'please use `ls` to list dir first to let me know which files you want to download'
+                return
             try:
-                indexes = parse_index_param(opts.index, len(self.dirs))
-                fps = [self.dirs[i]['server_filename'] for i in indexes]
+                indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
+                fps = [self.dirs.get(self.cwd)[i]['server_filename'] for i in indexes]
             except Exception, ex:
                 print ex
                 return
@@ -520,6 +536,10 @@ class BaiduPan(Cmd):
             rs = json.loads(self.pcs.mkdir(ap).content)
             if rs['errno'] == 0:
                 print rs['name'], 'created'
+                dn = os.path.dirname(ap)
+                if dn not in self.dirs:
+                    self.dirs[dn] = []
+                self.dirs[dn].append(os.path.basename(ap))
             else:
                 print rs['name'], 'failed'
 
@@ -533,9 +553,12 @@ class BaiduPan(Cmd):
 
         fps = []
         if opts.index:
+            if not self.dirs.get(self.cwd):
+                print 'please use `ls` to list dir first to let me know which files you want to download'
+                return
             try:
-                indexes = parse_index_param(opts.index, len(self.dirs))
-                fps = [self.dirs[i]['server_filename'] for i in indexes]
+                indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
+                fps = [self.dirs.get(self.cwd)[i]['server_filename'] for i in indexes]
             except Exception, ex:
                 print ex
                 return
@@ -574,9 +597,12 @@ class BaiduPan(Cmd):
 
         fps = []
         if opts.index:
+            if not self.dirs.get(self.cwd):
+                print 'please use `ls` to list dir first to let me know which files you want to download'
+                return
             try:
-                indexes = parse_index_param(opts.index, len(self.dirs))
-                fps = [self.dirs[i]['server_filename'] for i in indexes]
+                indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
+                fps = [self.dirs.get(self.cwd)[i]['server_filename'] for i in indexes]
             except Exception, ex:
                 print ex
                 return
@@ -701,6 +727,11 @@ class BaiduPan(Cmd):
         return ret
 
     complete_rapid_upload = complete_upload
+
+    def do_sleep(self, args):
+        t = float(args)
+        time.sleep(t)
+        print 'just slept %f seconds, ah, what a great day!'
 
     def do_EOF(self, line):
         print ''
