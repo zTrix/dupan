@@ -476,6 +476,7 @@ class BaiduPan(Cmd):
         if not filter: filter = lambda x:True
         def complete_sth(self, text, line, start_index, end_index):
             if text:
+                # list dir first it the user indicate that it's a dir
                 if text.endswith('/'):
                     text = os.path.normpath(text)
                     dn = os.path.normpath(os.path.join(self.cwd, text))
@@ -484,20 +485,19 @@ class BaiduPan(Cmd):
                         return map(lambda x: os.path.join(prefix, x), [e['server_filename'] for e in self.dirs.get(dn) if filter(e)])
                     else:
                         return []
-                if text.startswith('/'):
-                    if text in self.dirs:
-                        return [text + '/']
-                    else:
-                        dn = os.path.dirname(text)
-                        bn = os.path.basename(text)
-                        if dn not in self.dirs: 
-                            return []
-                        prefix = dn
-                else:
-                    prefix = ''
-                    dn = self.cwd
-                    bn = text
-                return [os.path.normpath(os.path.join(prefix, e['server_filename'])) for e in self.dirs.get(dn) if e['server_filename'].startswith(bn) and filter(e)]
+
+                # check if it's a dir second, if it is, return appending slash
+                if os.path.normpath(os.path.join(self.cwd, text)) in self.dirs:
+                    return [text + '/']
+
+                bn = os.path.basename(text)
+                prefix = text[:-(len(bn)+1)]
+                dn = os.path.dirname(os.path.normpath(os.path.join(self.cwd, text)))
+
+                if dn not in self.dirs: return []
+
+                ret = [os.path.join(prefix, e['server_filename']) + (((e['server_filename'] == bn) and e['isdir']) and '/' or '') for e in self.dirs.get(dn) if e['server_filename'].startswith(bn) and filter(e)]
+                return ret
             else:
                 return [e['server_filename'] for e in self.dirs.get(self.cwd) if filter(e)]
         return complete_sth
