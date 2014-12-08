@@ -418,9 +418,16 @@ class BaiduPan(Cmd):
         content = []
         cnt = 0
         lst = res.get('list', [])
-        idxsz = len(str(len(lst)))
+        idxsz = len(str(len(lst)-1))
+        sizes = []
+        sizesz = 0
         for fsitem in lst:
-            print '[ %s ]  %s  %s\t%s' % (str(cnt).ljust(idxsz), fsitem.get('isdir', 0) and 'd' or '-', readable_size(fsitem.get('size'), unit_ljust = 3) , colored(fsitem.get('server_filename'), fsitem.get('isdir', 0) and 'cyan' or 'white'))
+            t = readable_size(fsitem.get('size'))
+            if len(t) > sizesz:
+                sizesz = len(t)
+            sizes.append(t)
+        for i, fsitem in enumerate(lst):
+            print '[ %s ]  %s  %s  %s   %s' % (str(cnt).ljust(idxsz), fsitem.get('isdir', 0) and 'd' or '-', sizes[i].ljust(sizesz, ' '), datetime.datetime.fromtimestamp(fsitem.get('server_mtime', 0)).strftime('%Y-%m-%d_%H:%M:%S'), colored(fsitem.get('server_filename'), fsitem.get('isdir', 0) and 'cyan' or 'white', attrs = ['bold']) + (fsitem.get('isdir', 0) and '/' or ''))
             cnt += 1
             content.append(fsitem.get('server_filename'))
 
