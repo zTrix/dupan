@@ -426,35 +426,44 @@ class BaiduPan(Cmd):
 
         self.dirs[self.cwd] = lst
 
-    def do_meta(self, args):
+    @options([make_option('-i', '--index', help="the file index to delete, separate with comma, e.g. 3,5,2, also range supported, e.g. 1-4,5,7"),
+             ])
+    def do_meta(self, args, opts):
         if not self.pcs:
             print 'please login first'
             return
 
-        if type(args) == type([]):
-            args = args[0]
+        args = split_command_line(args)
 
-        if not isinstance(args, basestring) or not args:
-            print 'meta /path/to/dir/ or meta relpath'
-            return
+        fps = []
+        if opts.index:
+            if not self.dirs.get(self.cwd):
+                print 'please use `ls` to list dir first to let me know which files you want to operate'
+                return
+            try:
+                indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
+                fps = [self.dirs.get(self.cwd)[i]['server_filename'] for i in indexes]
+            except Exception, ex:
+                print ex
+                return
 
-        path = args
+        final = fps + args
 
-        if not path.startswith('/'):
+        for path in final:
             path = os.path.normpath(os.path.join(self.cwd, path))
 
-        print path
-        o = json.loads(self.pcs.meta([path]).content)
+            print path
+            o = json.loads(self.pcs.meta([path]).content)
 
-        if o.get('errno', None) != 0:
-            print ('invalid request: %r' % o)
-            return
+            if o.get('errno', None) != 0:
+                print ('invalid request: %r' % o)
+                return
 
-        size = o['info'][0]['size']
+            size = o['info'][0]['size']
 
-        info = o['info'][0]
-        for k in info:
-            print colored(k + ': ', 'cyan'), colored(info[k], 'white')
+            info = o['info'][0]
+            for k in info:
+                print colored(k + ': ', 'cyan'), colored(info[k], 'white')
 
     def _complete_remote(filter = None):
         if not filter: filter = lambda x:True
@@ -463,8 +472,9 @@ class BaiduPan(Cmd):
                 if text.endswith('/'):
                     text = os.path.normpath(text)
                     dn = os.path.normpath(os.path.join(self.cwd, text))
+                    prefix = text.startswith('/') and dn or text
                     if dn in self.dirs:
-                        return map(lambda x: os.path.join(dn, x), [e['server_filename'] for e in self.dirs.get(dn) if filter(e)])
+                        return map(lambda x: os.path.join(prefix, x), [e['server_filename'] for e in self.dirs.get(dn) if filter(e)])
                     else:
                         return []
                 if text.startswith('/'):
@@ -503,7 +513,7 @@ class BaiduPan(Cmd):
         fps = []
         if opts.index:
             if not self.dirs.get(self.cwd):
-                print 'please use `ls` to list dir first to let me know which files you want to download'
+                print 'please use `ls` to list dir first to let me know which files you want to operate'
                 return
             try:
                 indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
@@ -554,7 +564,7 @@ class BaiduPan(Cmd):
         fps = []
         if opts.index:
             if not self.dirs.get(self.cwd):
-                print 'please use `ls` to list dir first to let me know which files you want to download'
+                print 'please use `ls` to list dir first to let me know which files you want to operate'
                 return
             try:
                 indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
@@ -598,7 +608,7 @@ class BaiduPan(Cmd):
         fps = []
         if opts.index:
             if not self.dirs.get(self.cwd):
-                print 'please use `ls` to list dir first to let me know which files you want to download'
+                print 'please use `ls` to list dir first to let me know which files you want to operate'
                 return
             try:
                 indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
