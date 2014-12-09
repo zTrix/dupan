@@ -491,7 +491,7 @@ class BaiduPan(Cmd):
                     return [text + '/']
 
                 bn = os.path.basename(text)
-                prefix = text[:-(len(bn)+1)]
+                prefix = text[:-len(bn)]
                 dn = os.path.dirname(os.path.normpath(os.path.join(self.cwd, text)))
 
                 if dn not in self.dirs: return []
@@ -748,7 +748,7 @@ class BaiduPan(Cmd):
     def do_sleep(self, args):
         t = float(args)
         time.sleep(t)
-        print 'just slept %f seconds, ah, what a great day!'
+        print 'just slept %f seconds, ah, what a great day!' % t
 
     def do_EOF(self, line):
         print ''
