@@ -556,7 +556,15 @@ class BaiduPan(Cmd):
                 dn = os.path.dirname(ap)
                 if dn not in self.dirs:
                     self.dirs[dn] = []
-                self.dirs[dn].append(os.path.basename(ap))
+                self.dirs[dn].append({
+                    "isdir": 1,
+                    "server_filename": os.path.basename(rs.get('name')),
+                    "server_ctime": rs.get('mtime'),
+                    "server_mtime": rs.get('mtime'),
+                    "fs_id": rs.get('fs_id'),
+                    "path": rs.get('path'),
+                    "size": 0,
+                })
             else:
                 print rs['name'], 'failed'
 
@@ -715,7 +723,7 @@ class BaiduPan(Cmd):
         dest = os.path.normpath(os.path.join(self.cwd, args[-1]))
 
         for i in args[:-1]:
-            print colored('uploading %s' % i, 'white')
+            print colored('uploading %s to %s' % (i, dest), 'white')
             if not os.path.exists(i):
                 print colored('file %s not exist' % i, 'yellow')
                 continue
@@ -725,7 +733,20 @@ class BaiduPan(Cmd):
                 print '%s failed to upload, reason = %r' % o
                 break
             else:
-                print '%s uploaded!' % i
+                print '%s uploaded to %s!' % (i, dest)
+                dn = os.path.dirname(o.get('path'))
+                if dn and dn not in self.dirs:
+                    self.dirs[dn] = []
+                if dn and dn in self.dirs:
+                    self.dirs[dn].append({
+                        "isdir": 0,
+                        "server_filename": os.path.basename(o.get('path')),
+                        "server_ctime": o.get('mtime'),
+                        "server_mtime": o.get('mtime'),
+                        "fs_id": o.get('fs_id'),
+                        "path": o.get('path'),
+                        "size": o.get('size'),
+                    })
 
     def complete_upload(self, text, line, start_index, end_index):
         dn = os.path.dirname(text)
