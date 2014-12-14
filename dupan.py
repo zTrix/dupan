@@ -387,8 +387,7 @@ class BaiduPan(Cmd):
         else:
             path = args
 
-        if not path.startswith('/'):
-            path = os.path.normpath(os.path.join(self.cwd, path))
+        path = os.path.normpath(os.path.join(self.cwd, path))
 
         print path
         res = json.loads(self.pcs.list_files(path).content)
@@ -431,7 +430,7 @@ class BaiduPan(Cmd):
             cnt += 1
             content.append(fsitem.get('server_filename'))
 
-        self.dirs[self.cwd] = lst
+        self.dirs[path] = lst
 
     @options([make_option('-i', '--index', help="the file index to delete, separate with comma, e.g. 3,5,2, also range supported, e.g. 1-4,5,7"),
              ])
