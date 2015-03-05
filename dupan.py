@@ -2,6 +2,7 @@
 #-*- coding:utf-8 -*-
 
 import json, os, sys, socket, httplib, datetime, time, getopt
+import glob
 from baidupcsapi import PCS
 from cmd2 import Cmd, make_option, options
 import requests, ssl
@@ -670,22 +671,26 @@ class BaiduPan(Cmd):
             return
 
         dest = os.path.join(self.cwd, args[-1])
-        src = args[0]
-        dest = os.path.normpath(os.path.join(dest, os.path.basename(src)))
 
-        print colored('rapid uploading %s' % src, 'white')
-        if not os.path.exists(src):
-            print colored('file %s not exist' % src, 'yellow')
-            return
-        rs = self.pcs.rapidupload(open(src, 'rb'), dest)
-        o = json.loads(rs.content)
-        if 'errno' in o and o['errno']:
-            print '%s failed to rapid upload, reason = %r' % o
-        else:
-            print '%s rapid uploaded!' % (src)
-            info = o['info']
-            for k in info:
-                print colored(k + ': ', 'cyan'), colored(info[k], 'white')
+        def rapid_upload_one(src, dest):
+            dest = os.path.normpath(os.path.join(dest, os.path.basename(src)))
+
+            print colored('rapid uploading %s' % src, 'white')
+            if not os.path.exists(src):
+                print colored('file %s not exist' % src, 'yellow')
+                return
+            rs = self.pcs.rapidupload(open(src, 'rb'), dest)
+            o = json.loads(rs.content)
+            if 'errno' in o and o['errno']:
+                print '%s failed to rapid upload, reason = %r' % (src, o)
+            else:
+                print '%s rapid uploaded!' % (src)
+                info = o['info']
+                for k in info:
+                    print colored(k + ': ', 'cyan'), colored(info[k], 'white')
+
+        for src in glob.glob(args[0]):
+            rapid_upload_one(src, dest)
 
     def do_upload(self, args):
         args = split_command_line(args)
@@ -761,7 +766,11 @@ class BaiduPan(Cmd):
                 if os.path.isdir(com):
                     com = os.path.normpath(com) + '/'
                 ret.append(com)
-        return ret
+        def add_quote(s):
+            if s and ' ' in s and s[0] != '"':
+                return '"' + s + '"'
+            return s
+        return map(add_quote, ret)
 
     complete_rapid_upload = complete_upload
 
