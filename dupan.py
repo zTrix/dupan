@@ -426,7 +426,7 @@ class BaiduPan(Cmd):
                 sizesz = len(t)
             sizes.append(t)
         for i, fsitem in enumerate(lst):
-            print '[ %s ]  %s  %s  %s   %s' % (str(cnt).ljust(idxsz), fsitem.get('isdir', 0) and 'd' or '-', sizes[i].ljust(sizesz, ' '), datetime.datetime.fromtimestamp(fsitem.get('server_mtime', 0)).strftime('%Y-%m-%d_%H:%M:%S'), colored(fsitem.get('server_filename'), fsitem.get('isdir', 0) and 'cyan' or 'white', attrs = ['bold']) + (fsitem.get('isdir', 0) and '/' or ''))
+            print '[ %s ]  %s  %s  %s   %s' % (str(cnt).rjust(idxsz), fsitem.get('isdir', 0) and 'd' or '-', sizes[i].ljust(sizesz, ' '), datetime.datetime.fromtimestamp(fsitem.get('server_mtime', 0)).strftime('%Y-%m-%d_%H:%M:%S'), colored(fsitem.get('server_filename'), fsitem.get('isdir', 0) and 'cyan' or 'white', attrs = ['bold']) + (fsitem.get('isdir', 0) and '/' or ''))
             cnt += 1
             content.append(fsitem.get('server_filename'))
 
