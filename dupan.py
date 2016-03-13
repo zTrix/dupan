@@ -26,7 +26,11 @@ if not sys.stdout.isatty():
     sys.stdout = codecs.getwriter('utf8')(sys.stdout)
     sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 
-CWD = os.path.dirname(os.path.realpath(__file__))
+if os.environ['HOME']:
+    ROOT = os.path.join(os.environ['HOME'], 'baiduyun')
+else:
+    print '[ ERROR ] $HOME not found, exit'
+    sys.exit(10)
 
 def readable_size(num, use_kibibyte = True, unit_ljust = 0):
     base, suffix = [(1000.,'B'),(1024.,'iB')][use_kibibyte]
@@ -215,7 +219,7 @@ def handle_captcha(img_content, out = sys.stderr):
 
     img_data = StringIO(img_content)
     im = Image.open(img_data)
-    save_path = os.path.join(CWD, '.baiduyun-captcha.png')
+    save_path = os.path.join(ROOT, '.baiduyun-captcha.png')
     im.save(save_path)
     imgWidth = im.size[0]
     imgHeight = im.size[1]
@@ -275,7 +279,7 @@ def download(pcs, filepath, saveto, blocksize = 1<<21, retry = 5):
                     downloaded += data_read
                     now = time.time()
                     ave = downloaded / (now - begin_time)
-                    log('[ II ] downloaded size = %d/%d (%.2f%%), just downloaded %d bytes, speed = %s/s, average speed = %s/s, remain time = %s' % (start + data_read, size, (start + data_read) * 100.0/size, data_read, readable_size(data_read / (now - round_time)), readable_size(ave), readable_timedelta((size - start - data_read)/ave)))
+                    log('[ II ] downloaded size = %d/%d (%.2f%%), just downloaded %d bytes, speed = %s/s, average speed = %s/s, remain time = %s        \r' % (start + data_read, size, (start + data_read) * 100.0/size, data_read, readable_size(data_read / (now - round_time)), readable_size(ave), readable_timedelta((size - start - data_read)/ave)), new_line=False)
                     f.write(res.content)
                     break
                 else:
@@ -307,7 +311,7 @@ class BaiduPan(Cmd):
     timing = False
     debug = True
 
-    download_root = os.path.join(CWD, 'download')
+    download_root = ROOT
     cwd = '/'
     dirs = {}
     pcs = None
@@ -539,6 +543,63 @@ class BaiduPan(Cmd):
             if not filepath.startswith('/'):
                 filepath = os.path.normpath(os.path.join(self.cwd, filepath))
             download(self.pcs, filepath, os.path.normpath(self.download_root + '/' + filepath), opts.blocksize, opts.retry)
+
+    @options([make_option('-b', '--blocksize', type="int", default=1<<21, help="download blocksize"),
+              make_option('-r', '--retry', type="int", default=5, help="retry time after failure"),
+              make_option('-i', '--index', help="the file index to download, separate with comma, e.g. 3,5,2, also range supported, e.g. 1-4,5,7"),
+             ])
+    def do_download_recursive(self, args, opts):
+        if not self.pcs:
+            print 'please login first'
+            return
+        
+        args = split_command_line(args)
+
+        fps = []
+        if opts.index:
+            if not self.dirs.get(self.cwd):
+                print 'please use `ls` to list dir first to let me know which files you want to operate'
+                return
+            try:
+                indexes = parse_index_param(opts.index, len(self.dirs.get(self.cwd)))
+                fps = [self.dirs.get(self.cwd)[i]['server_filename'] for i in indexes]
+            except Exception, ex:
+                print ex
+                return
+
+        final = fps + args
+        if not final:
+            print 'download_recursive [-i 3,5] relpath|/path/to/somefile'
+            return
+
+        def _download(target_path, isdir=0):
+            if isdir < 0:
+                path = os.path.normpath(os.path.join(self.cwd, target_path))
+
+                o = json.loads(self.pcs.meta([path]).content)
+                if o.get('errno', 0) != 0:
+                    log('invalid response: %r' % o, 'yellow')
+                    return
+                isdir = o['info'][0]['isdir']
+
+            realpath = os.path.normpath(os.path.join(self.cwd, target_path))
+            if isdir == 0:
+                download(self.pcs, realpath, os.path.normpath(self.download_root + '/' + realpath), opts.blocksize, opts.retry)
+            else:
+                dir_content = json.loads(self.pcs.list_files(realpath).content)
+
+                if dir_content.get('errno', 0) != 0:
+                    log('invalid response: %r' % dir_content, 'yellow')
+                    return
+
+                for entry in dir_content.get("list", []):
+                    _download(os.path.join(target_path, entry['server_filename']), entry.get('isdir', 0))
+
+                self.dirs[realpath] = dir_content.get("list", [])
+
+        for filepath in final:
+            if not filepath: continue
+            _download(filepath, -1)
 
     def do_mkdir(self, args):
         if not self.pcs:
