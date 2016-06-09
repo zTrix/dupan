@@ -217,6 +217,8 @@ def handle_captcha(img_content, out = sys.stderr):
             except EOFError:
                 break
 
+    if img_content and img_content.startswith('http'):
+        img_content = requests.get(img_content).content
     img_data = StringIO(img_content)
     im = Image.open(img_data)
     save_path = os.path.join(ROOT, '.baiduyun-captcha.png')
