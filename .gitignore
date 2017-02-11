@@ -2,3 +2,5 @@
 .*.cookies
 /download
 /.dupan.log
+*.pyc
+/venv
