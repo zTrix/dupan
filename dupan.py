@@ -332,13 +332,19 @@ class BaiduPan(Cmd):
     def do_login(self, args, opts):
         print 'logging in, please wait ...'
         self.pcs = PCS(opts.username, opts.password, captcha_callback = handle_captcha)
-        self.pcs.get_fastest_pcs_server()
-        res = json.loads(self.pcs.quota().content)
-        if res['errno'] != 0:
-            self.pcs = None
+        # self.pcs.get_fastest_pcs_server()
+        res = {}
+        for retry in range(3):
+            res = json.loads(self.pcs.quota().content)
+            if res['errno'] == 0:
+                break
+            else:
+                res = {}
+                time.sleep(retry+1)
+        if res.get('errno') == 0:
+            print 'Login success. storage used: %s/%s' % (readable_size(res['used']), readable_size(res['total']))
+        else:
             print 'login failed: %r' % res
-            return
-        print 'Login success. storage used: %s/%s' % (readable_size(res['used']), readable_size(res['total']))
 
     def do_cd(self, args):
         if type(args) == type([]):
